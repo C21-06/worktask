@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  app:
+    image: hashicorp/http-echo:0.2.3
+    command:
+      - "-listen=:8080"
+      - "-text={\"status\":\"ok\",\"service\":\"app\",\"env\":\"${ENV_NAME:-local}\"}"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+
+  proxy:
+    image: nginx:1.27-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 10s
+
+networks:
+  internal:
+    driver: bridge
